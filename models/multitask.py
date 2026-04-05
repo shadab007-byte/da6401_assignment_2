@@ -30,9 +30,9 @@ class MultiTaskPerceptionModel(nn.Module):
         unet_path: str = "checkpoints/unet.pth",
     ):
         import gdown
-        gdown.download(id="<classifier.pth drive id>", output=classifier_path, quiet=False)
-        gdown.download(id="<localizer.pth drive id>", output=localizer_path, quiet=False)
-        gdown.download(id="<unet.pth drive id>", output=unet_path, quiet=False)
+        gdown.download(id="1vTzT1rreJD1yqe0t1MP7FVSaUVHoqjhv", output=classifier_path, quiet=False)
+        gdown.download(id="1QKmcBfI1XjYQSj_5-_Z6L-ArIhjHEUrb", output=localizer_path, quiet=False)
+        gdown.download(id="1ekMYcaJWyF62e3qK0ftEkbrEQJIZiTFw", output=unet_path, quiet=False)
 
         super().__init__()
 
