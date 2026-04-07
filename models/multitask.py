@@ -47,7 +47,7 @@ class MultiTaskPerceptionModel(nn.Module):
         self._load_checkpoint(localizer_path,  device, task="localizer")
         self._load_checkpoint(unet_path,       device, task="unet")
 
-        # Share the encoder across all tasks
+        #share the encoder across all tasks
         self._unet.encoder = self.encoder
 
     def _load_checkpoint(self, path: str, device, task: str):
