@@ -1,7 +1,3 @@
-"""Training entrypoint — DA6401 Assignment 2
-Trains Task 1 (classifier), Task 2 (localizer), Task 3 (U-Net) sequentially
-and logs everything required for the W&B report.
-"""
 
 import os
 import argparse
@@ -23,9 +19,8 @@ from models.segmentation import VGG11UNet
 from losses.iou_loss import IoULoss
 
 
-# ============================================================================ #
 # Config
-# ============================================================================ #
+
 WANDB_ENTITY  = "iitm_assigment"
 WANDB_PROJECT = "da6401-assignment-2"
 IMG_SIZE      = 224
@@ -34,9 +29,7 @@ SEG_CLASSES   = 3   # Oxford trimaps: foreground / background / border
 DEVICE        = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-# ============================================================================ #
-# Loss helpers
-# ============================================================================ #
+# loss helpers
 class DiceLoss(nn.Module):
     """Soft Dice loss for segmentation (multi-class, macro average)."""
 
@@ -52,7 +45,7 @@ class DiceLoss(nn.Module):
         """
         num_classes = logits.shape[1]
         probs = torch.softmax(logits, dim=1)                    # [B, C, H, W]
-        # One-hot encode targets
+        #One-hot encode targets
         one_hot = torch.zeros_like(probs)                       # [B, C, H, W]
         one_hot.scatter_(1, targets.unsqueeze(1), 1)
 
@@ -77,9 +70,7 @@ class CombinedSegLoss(nn.Module):
         return self.ce_w * self.ce(logits, targets) + self.dice_w * self.dice(logits, targets)
 
 
-# ============================================================================ #
-# Metric helpers
-# ============================================================================ #
+# metric helpers
 def compute_accuracy(logits: torch.Tensor, targets: torch.Tensor) -> float:
     preds = logits.argmax(dim=1)
     return (preds == targets).float().mean().item()
@@ -141,10 +132,7 @@ def compute_pixel_accuracy(logits: torch.Tensor, targets: torch.Tensor) -> float
     preds = logits.argmax(dim=1)
     return (preds == targets).float().mean().item()
 
-
-# ============================================================================ #
-# Data loaders
-# ============================================================================ #
+# data loaders
 def build_loaders(data_root: str, batch_size: int, augment: bool = True):
     """Build train/val/test DataLoaders."""
     aug_transform = A.Compose([
@@ -171,13 +159,12 @@ def build_loaders(data_root: str, batch_size: int, augment: bool = True):
     return train_loader, val_loader, test_loader
 
 
-# ============================================================================ #
+
 # Task 1 — Classification
-# ============================================================================ #
 def train_classifier(args, train_loader, val_loader):
     """Train VGG11Classifier; logs W&B section 2.1, 2.2, 2.4."""
 
-    # ---- Section 2.2: Three dropout runs ---------------------------------- #
+    # section 2.2: Three dropout runs
     dropout_configs = [
         ("no_dropout",    0.0),
         ("dropout_p0.2",  0.2),
@@ -211,7 +198,7 @@ def train_classifier(args, train_loader, val_loader):
         best_val_acc = 0.0
 
         for epoch in range(1, args.cls_epochs + 1):
-            # -- Train --
+            #Train
             model.train()
             train_loss, train_acc = 0.0, 0.0
             for imgs, labels, _, _ in train_loader:
@@ -228,7 +215,7 @@ def train_classifier(args, train_loader, val_loader):
             train_loss /= len(train_loader)
             train_acc  /= len(train_loader)
 
-            # -- Val --
+            #Val
             model.eval()
             val_loss, val_acc, val_f1 = 0.0, 0.0, 0.0
             all_logits, all_labels = [], []
@@ -268,11 +255,11 @@ def train_classifier(args, train_loader, val_loader):
                                 "epoch": epoch,
                                 "best_metric": best_val_acc}, best_model_path)
 
-        # ---- Section 2.4: Feature maps (only for the p=0.5 run) ---------- #
+        #Section 2.4: Feature maps (only for the p=0.5 run)
         if run_name == "dropout_p0.5":
             _log_feature_maps(model, val_loader)
 
-        # ---- Section 2.1: BatchNorm activation distribution -------------- #
+        #Section 2.1: BatchNorm activation distribution
         if run_name == "dropout_p0.5":
             _log_bn_activation_dist(args, val_loader)
 
@@ -320,7 +307,7 @@ def _log_feature_maps(model, val_loader):
 
 
 def _log_bn_activation_dist(args, val_loader):
-    """Section 2.1 — compare activation distributions with/without BN."""
+    #Section 2.1 — compare activation distributions with/without BN
     import copy
 
     imgs, _, _, _ = next(iter(val_loader))
@@ -330,7 +317,7 @@ def _log_bn_activation_dist(args, val_loader):
 
     for use_bn, label in [(True, "with_BN"), (False, "without_BN")]:
         # Build a tiny model variant just for the 3rd conv layer
-        # We approximate 'without BN' by replacing BN with Identity
+        # approximate 'without BN' by replacing BN with Identity
         model_tmp = VGG11Classifier(num_classes=NUM_CLASSES).to(DEVICE)
         if not use_bn:
             for name, m in model_tmp.named_modules():
@@ -341,7 +328,7 @@ def _log_bn_activation_dist(args, val_loader):
                     setattr(parent, child_name, nn.Identity())
 
         acts = {}
-        # Hook on 3rd conv: block2[0][0] is the Conv in block2's first sub-block
+        #hook on 3rd conv: block2[0][0] is the Conv in block2's first sub-block
         h = model_tmp.encoder.block2[0][0].register_forward_hook(
             lambda mod, inp, out: acts.update({"act": out.detach().cpu()})
         )
@@ -361,10 +348,8 @@ def _log_bn_activation_dist(args, val_loader):
     wandb.log({"analysis/bn_activation_dist": wandb.Image(fig)})
     plt.close(fig)
 
-
-# ============================================================================ #
 # Task 2 — Localization
-# ============================================================================ #
+
 def train_localizer(args, train_loader, val_loader, test_loader):
     """Train VGG11Localizer; logs W&B section 2.5."""
 
@@ -401,7 +386,7 @@ def train_localizer(args, train_loader, val_loader, test_loader):
     best_path = "checkpoints/localizer.pth"
 
     for epoch in range(1, args.loc_epochs + 1):
-        # -- Train --
+        #Train
         model.train()
         t_loss, t_iou = 0.0, 0.0
         for imgs, _, bboxes, _ in train_loader:
@@ -419,7 +404,7 @@ def train_localizer(args, train_loader, val_loader, test_loader):
         t_loss /= len(train_loader)
         t_iou  /= len(train_loader)
 
-        # -- Val --
+        #Val
         model.eval()
         v_loss, v_iou = 0.0, 0.0
         with torch.no_grad():
@@ -444,7 +429,7 @@ def train_localizer(args, train_loader, val_loader, test_loader):
             torch.save({"state_dict": model.state_dict(),
                         "epoch": epoch, "best_metric": best_val_iou}, best_path)
 
-    # ---- Section 2.5: Detection table ------------------------------------ #
+    #section 2.5: Detection table
     _log_detection_table(model, test_loader)
 
     wandb.finish()
@@ -452,7 +437,7 @@ def train_localizer(args, train_loader, val_loader, test_loader):
 
 
 def _log_detection_table(model, test_loader):
-    """Section 2.5 — W&B table with bbox predictions overlaid."""
+    #section 2.5 — W&B table with bbox predictions overlaid
     model.eval()
     iou_fn = IoULoss(reduction="none")
 
@@ -490,7 +475,7 @@ def _log_detection_table(model, test_loader):
 
 
 def _denorm(tensor):
-    """Convert normalised tensor [3,H,W] to uint8 HWC numpy."""
+    #convert normalised tensor [3,H,W] to uint8 HWC numpy
     mean = np.array([0.485, 0.456, 0.406])
     std  = np.array([0.229, 0.224, 0.225])
     img  = tensor.permute(1, 2, 0).numpy()
@@ -500,7 +485,7 @@ def _denorm(tensor):
 
 
 def _draw_boxes(img_np, gt_box, pred_box):
-    """Draw GT (green) and Pred (red) boxes on image; return PIL Image."""
+    #Draw GT (green) and Pred (red) boxes on image; return PIL Image
     from PIL import Image as PILImage, ImageDraw
     pil = PILImage.fromarray(img_np)
     draw = ImageDraw.Draw(pil)
@@ -513,14 +498,11 @@ def _draw_boxes(img_np, gt_box, pred_box):
     draw.rectangle(cx_cy_to_xyxy(pred_box), outline="red",   width=2)
     return pil
 
-
-# ============================================================================ #
 # Task 3 — Segmentation
-# ============================================================================ #
 def train_segmentation(args, train_loader, val_loader, test_loader):
     """Train VGG11UNet; logs W&B sections 2.3 and 2.6."""
 
-    # ---- Section 2.3: Three transfer-learning strategies ----------------- #
+    #section 2.3: Three transfer-learning strategies
     strategies = [
         ("strict_frozen",    "freeze_all"),
         ("partial_finetune", "freeze_early"),
@@ -576,7 +558,7 @@ def train_segmentation(args, train_loader, val_loader, test_loader):
         best_val_dice = 0.0
 
         for epoch in range(1, args.seg_epochs + 1):
-            # -- Train --
+            #Train
             model.train()
             t_loss, t_dice, t_pxacc = 0.0, 0.0, 0.0
             for imgs, _, _, masks in train_loader:
@@ -595,7 +577,7 @@ def train_segmentation(args, train_loader, val_loader, test_loader):
             n = len(train_loader)
             t_loss /= n; t_dice /= n; t_pxacc /= n
 
-            # -- Val --
+            #Val
             model.eval()
             v_loss, v_dice, v_pxacc = 0.0, 0.0, 0.0
             with torch.no_grad():
@@ -625,7 +607,7 @@ def train_segmentation(args, train_loader, val_loader, test_loader):
                                 "epoch": epoch, "best_metric": best_val_dice},
                                best_model_path)
 
-        # ---- Section 2.6: Segmentation sample images --------------------- #
+        #section 2.6: Segmentation sample images
         if strategy == "full_finetune":
             _log_segmentation_samples(model, val_loader)
 
@@ -635,7 +617,7 @@ def train_segmentation(args, train_loader, val_loader, test_loader):
 
 
 def _log_segmentation_samples(model, val_loader):
-    """Section 2.6 — log 5 images: original / GT mask / predicted mask."""
+    #Section 2.6 — log 5 images: original / GT mask / predicted mask
     model.eval()
     collected = 0
 
@@ -673,13 +655,8 @@ def _log_segmentation_samples(model, val_loader):
     wandb.log({"segmentation/sample_table": table})
 
 
-# ============================================================================ #
-# Final pipeline showcase (Section 2.7 is done manually in Colab notebook)
-# ============================================================================ #
-
-# ============================================================================ #
 # Main
-# ============================================================================ #
+
 def parse_args():
     p = argparse.ArgumentParser(description="DA6401 Assignment 2 Training")
     p.add_argument("--data_root",   type=str, default="data/oxford-iiit-pet")
