@@ -9,10 +9,10 @@ class CustomDropout(nn.Module):
     """custom Dropout layer implementing.
 
       - Inverted dropout scales activations by 1/(1-p) during training so that
-        the expected value of each activation remains the same at test time,
+        the expected value of each activation remains the same at test time
         requiring no rescaling during inference.
       - use torch.bernoulli on a uniform random tensor rather than any
-        built-in dropout utility, as required by the assignment.
+        built-in dropout utility as required by the assignment.
     """
 
     def __init__(self, p: float = 0.5):
