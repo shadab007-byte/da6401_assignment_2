@@ -48,26 +48,26 @@ class IoULoss(nn.Module):
         tgt_x2    = target_boxes[:, 0] + target_boxes[:, 2] / 2
         tgt_y2    = target_boxes[:, 1] + target_boxes[:, 3] / 2
 
-        # Intersection corners
+        #Intersection corners
         inter_x1  = torch.max(pred_x1, tgt_x1)
         inter_y1  = torch.max(pred_y1, tgt_y1)
         inter_x2  = torch.min(pred_x2, tgt_x2)
         inter_y2  = torch.min(pred_y2, tgt_y2)
 
-        # Intersection area (clamp to 0 for non-overlapping boxes)
+        #Intersection area (clamp to 0 for non-overlapping boxes)
         inter_w   = (inter_x2 - inter_x1).clamp(min=0)
         inter_h   = (inter_y2 - inter_y1).clamp(min=0)
         inter_area = inter_w * inter_h
 
-        # Union area
+        #union area
         pred_area  = (pred_x2 - pred_x1).clamp(min=0) * (pred_y2 - pred_y1).clamp(min=0)
         tgt_area   = (tgt_x2  - tgt_x1).clamp(min=0) * (tgt_y2  - tgt_y1).clamp(min=0)
         union_area  = pred_area + tgt_area - inter_area
 
-        # IoU in [0, 1]
+        #IoU in [0, 1]
         iou = inter_area / (union_area + self.eps)
 
-        # Loss = 1 - IoU  ->  also in [0, 1]
+        #loss = 1 - IoU  ->  also in [0, 1]
         loss = 1.0 - iou
 
         if self.reduction == "mean":
