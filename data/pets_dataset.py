@@ -12,11 +12,11 @@ from PIL import Image
 from torch.utils.data import Dataset
 
 
-# Oxford-IIIT Pet trimap pixel values:
+#oxford-IIIT Pet trimap pixel values:
 #   1 = foreground (pet)
 #   2 = background
 #   3 = not classified / border
-# We remap to 0-indexed class labels for CrossEntropyLoss
+#remap to 0-indexed class labels for CrossEntropyLoss
 TRIMAP_REMAP = {1: 0, 2: 1, 3: 2}
 
 
@@ -30,9 +30,9 @@ class OxfordIIITPetDataset(Dataset):
         mask        : LongTensor [224, 224] with values in {0, 1, 2}
     """
 
-    IMG_SIZE = 224   # fixed VGG11 input size
+    IMG_SIZE = 224   #fixed VGG11 input size
 
-    # ImageNet normalisation (used because VGG11 was originally trained on ImageNet)
+    #ImageNet normalisation (used because VGG11 was originally trained on ImageNet)
     MEAN = (0.485, 0.456, 0.406)
     STD  = (0.229, 0.224, 0.225)
 
@@ -43,21 +43,14 @@ class OxfordIIITPetDataset(Dataset):
         transform=None,
         augment: bool = False,
     ):
-        """
-        Args:
-            root:      Root directory that contains 'images/', 'annotations/' sub-dirs.
-            split:     'trainval' or 'test'.
-            transform: Optional additional albumentations transform (applied after
-                       the mandatory resize + normalise).
-            augment:   If True apply random horizontal flip + colour jitter.
-        """
+        
         super().__init__()
         self.root    = Path(root)
         self.split   = split
         self.augment = augment
         self.transform = transform
 
-        # Parse split file
+        #parse split file
         split_file = self.root / "annotations" / f"{split}.txt"
         self.samples = []   # list of (img_stem, class_id_1indexed, species, breed_id)
         with open(split_file) as f:
@@ -70,15 +63,14 @@ class OxfordIIITPetDataset(Dataset):
                 class_id    = int(parts[1]) - 1  # 1-indexed -> 0-indexed (0..36)
                 self.samples.append((stem, class_id))
 
-        # Build annotation paths
+        #Build annotation paths
         self.ann_dir  = self.root / "annotations"
         self.img_dir  = self.root / "images"
         self.xml_dir  = self.ann_dir / "xmls"
         self.mask_dir = self.ann_dir / "trimaps"
 
-    # ------------------------------------------------------------------ #
-    # Helpers
-    # ------------------------------------------------------------------ #
+    #helpers
+    
     def _load_image(self, stem: str) -> Image.Image:
         path = self.img_dir / f"{stem}.jpg"
         img = Image.open(path).convert("RGB")
@@ -132,24 +124,23 @@ class OxfordIIITPetDataset(Dataset):
         img  = (img - mean) / std
         return torch.from_numpy(img.transpose(2, 0, 1))   # [3, H, W]
 
-    # ------------------------------------------------------------------ #
     # Dataset interface
-    # ------------------------------------------------------------------ #
+
     def __len__(self) -> int:
         return len(self.samples)
 
     def __getitem__(self, idx: int):
         stem, class_id = self.samples[idx]
 
-        # Load image
+        #load image
         img_pil = self._load_image(stem)
         orig_w, orig_h = img_pil.size
 
-        # Resize image
+        #resize image
         img_pil = img_pil.resize((self.IMG_SIZE, self.IMG_SIZE), Image.BILINEAR)
         img_np  = np.array(img_pil, dtype=np.uint8)
 
-        # Optionally augment with albumentations
+        #optionally augment with albumentations
         mask_np = self._load_mask(stem, (self.IMG_SIZE, self.IMG_SIZE))
 
         if self.augment and self.transform is not None:
@@ -161,14 +152,14 @@ class OxfordIIITPetDataset(Dataset):
             img_np    = augmented["image"]
             mask_np   = augmented["mask"]
 
-        # Normalise
+        #normalise
         img_tensor  = self._normalise(img_np)
 
-        # Bounding box
+        #bounding box
         bbox = self._load_bbox(stem, orig_w, orig_h)
         bbox_tensor = torch.from_numpy(bbox)
 
-        # Mask
+        #mask
         mask_tensor = torch.from_numpy(mask_np.astype(np.int64))
 
         return img_tensor, class_id, bbox_tensor, mask_tensor
