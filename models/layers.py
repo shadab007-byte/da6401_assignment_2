@@ -6,13 +6,12 @@ import torch.nn as nn
 
 
 class CustomDropout(nn.Module):
-    """Custom Dropout layer implementing inverted dropout from scratch.
+    """custom Dropout layer implementing.
 
-    Design justification:
       - Inverted dropout scales activations by 1/(1-p) during training so that
         the expected value of each activation remains the same at test time,
         requiring no rescaling during inference.
-      - We use torch.bernoulli on a uniform random tensor rather than any
+      - use torch.bernoulli on a uniform random tensor rather than any
         built-in dropout utility, as required by the assignment.
     """
 
