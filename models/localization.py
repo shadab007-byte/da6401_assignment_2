@@ -13,7 +13,7 @@ class RegressionHead(nn.Module):
 
     Outputs [x_center, y_center, width, height] in pixel coordinates.
     A Sigmoid activation followed by scaling to image size (224) is used so
-    the raw network output is bounded, preventing gradient explosion while
+    the raw network output is bounded preventing gradient explosion while
     still predicting in pixel space as required.
     """
 
@@ -48,7 +48,7 @@ class RegressionHead(nn.Module):
 
 
 class VGG11Localizer(nn.Module):
-    """VGG11-based localizer."""
+    """VGG11-based localizer"""
 
     def __init__(self, in_channels: int = 3, dropout_p: float = 0.5):
         """
