@@ -7,8 +7,8 @@ implementing classification, object localization, and semantic segmentation.
 | Task | Metric | Score |
 |------|--------|-------|
 | Classification | Macro F1 | 0.82 |
-| Localization | IoU@0.5 | 0.57 |
-| Segmentation | Dice Score | 0.84 |
+| Localization | Acc@IoU=0.75 | 80% |
+| Segmentation | Dice Score | 0.856 |
 
 ## Links
 - **W&B Report:** [INSERT YOUR PUBLIC WANDB REPORT LINK HERE]
