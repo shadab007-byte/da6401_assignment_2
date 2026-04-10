@@ -11,7 +11,7 @@ implementing classification, object localization, and semantic segmentation.
 | Segmentation | Dice Score | 0.856 |
 
 ## Links
-- **W&B Report:** [INSERT YOUR PUBLIC WANDB REPORT LINK HERE]
+- **W&B Report:** https://wandb.ai/iitm_assigment/da6401-assignment-2/reports/DA6401-ASSIGNMENT-2--VmlldzoxNjQ0NjM2Nw
 - **GitHub:** https://github.com/shadab007-byte/da6401_assignment_2
 
 ## Setup
